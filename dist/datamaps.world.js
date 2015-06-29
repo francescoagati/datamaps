@@ -100,7 +100,7 @@
       d3.select(this.options.element).style({'position': 'relative', 'padding-bottom': (this.options.aspectRatio*100) + '%'});
       d3.select(this.options.element).select('svg').style({'position': 'absolute', 'width': '100%', 'height': '100%'});
       d3.select(this.options.element).select('svg').select('g').selectAll('path').style('vector-effect', 'non-scaling-stroke');
-    
+
     }
 
     return this.svg;
@@ -112,7 +112,7 @@
     var height = options.height || element.offsetHeight;
     var projection, path;
     var svg = this.svg;
-    
+
     if ( options && typeof options.scope === 'undefined') {
       options.scope = 'world';
     }
@@ -197,7 +197,7 @@
         if ( datum && datum.fillKey ) {
           fillColor = fillData[ val(datum.fillKey, {data: colorCodeData[d.id], geography: d}) ];
         }
-        
+
         if ( typeof fillColor === 'undefined' ) {
           fillColor = val(datum && datum.fillColor, fillData.defaultFill, {data: colorCodeData[d.id], geography: d});
         }
@@ -309,7 +309,7 @@
       this.svg.insert("path", '.datamaps-subunits')
         .datum(graticule)
         .attr("class", "datamaps-graticule")
-        .attr("d", this.path); 
+        .attr("d", this.path);
   }
 
   function handleArcs (layer, data, options) {
@@ -441,10 +441,27 @@
       throw "Datamaps Error - bubbles must be an array";
     }
 
+    var images = layer.selectAll('image.bubble-image').data( data, JSON.stringify );
+
+    images
+      .enter()
+      .append('image')
+      .attr('class','bubble-image')
+      .attr('x',25)
+      .attr('y',25)
+      .attr('xlink:href','http://placehold.it/150.png')
+      .attr('height','150')
+      .attr('width','150')
+      .attr('clip-path','url(#cut-off-bottom)');
+
+
     var bubbles = layer.selectAll('circle.datamaps-bubble').data( data, JSON.stringify );
 
     bubbles
       .enter()
+        .append('')
+        .append('clip-path')
+        .attr('id','cut-off-bottom')
         .append('svg:circle')
         .attr('class', 'datamaps-bubble')
         .attr('cx', function ( datum ) {
