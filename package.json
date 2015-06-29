@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "d3": "^3.5.5",
-    "topojson": "^1.6.19"
+    "topojson": "^1.6.19",
+    "grunt": "^0.4.5"
   },
   "devDependencies": {
     "grunt-replace": "~0.4.4",
