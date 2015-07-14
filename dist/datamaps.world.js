@@ -208,6 +208,39 @@
       .style('stroke', geoConfig.borderColor);
   }
 
+
+  function setActive(d) {
+
+    var $this = d3.select(d);
+
+
+    $this.style('fill','red');
+/*
+    if (options.highlightOnHover) {
+      //save all previous attributes for mouseout
+      var previousAttributes = {
+        'fill':  $this.style('fill'),
+        'stroke': $this.style('stroke'),
+        'stroke-width': $this.style('stroke-width'),
+        'fill-opacity': $this.style('fill-opacity')
+      };
+
+      $this
+        .style('fill', val(datum.highlightFillColor, options.highlightFillColor, datum))
+        .style('stroke', val(datum.highlightBorderColor, options.highlightBorderColor, datum))
+        .style('stroke-width', val(datum.highlightBorderWidth, options.highlightBorderWidth, datum))
+        .style('fill-opacity', val(datum.highlightFillOpacity, options.highlightFillOpacity, datum))
+        .attr('data-previousAttributes', JSON.stringify(previousAttributes));
+
+
+      }
+*/
+  }
+
+
+
+
+
   function handleGeographyConfig () {
     var hoverover;
     var svg = this.svg;
@@ -218,21 +251,24 @@
       svg.selectAll('.datamaps-subunit')
         .on('mouseover', function(d) {
           var $this = d3.select(this);
+
+
+
           var datum = self.options.data[d.id] || {};
           if ( options.highlightOnHover ) {
-            var previousAttributes = {
-              'fill':  $this.style('fill'),
-              'stroke': $this.style('stroke'),
-              'stroke-width': $this.style('stroke-width'),
-              'fill-opacity': $this.style('fill-opacity')
-            };
+            //var previousAttributes = {
+            //  'fill':  $this.style('fill'),
+            //  'stroke': $this.style('stroke'),
+            //  'stroke-width': $this.style('stroke-width'),
+            //  'fill-opacity': $this.style('fill-opacity')
+            //};
 
-            $this
-              .style('fill', val(datum.highlightFillColor, options.highlightFillColor, datum))
-              .style('stroke', val(datum.highlightBorderColor, options.highlightBorderColor, datum))
-              .style('stroke-width', val(datum.highlightBorderWidth, options.highlightBorderWidth, datum))
-              .style('fill-opacity', val(datum.highlightFillOpacity, options.highlightFillOpacity, datum))
-              .attr('data-previousAttributes', JSON.stringify(previousAttributes));
+            //$this
+            //  .style('fill', val(datum.highlightFillColor, options.highlightFillColor, datum))
+            //  .style('stroke', val(datum.highlightBorderColor, options.highlightBorderColor, datum))
+            //  .style('stroke-width', val(datum.highlightBorderWidth, options.highlightBorderWidth, datum))
+            //  .style('fill-opacity', val(datum.highlightFillOpacity, options.highlightFillOpacity, datum))
+            //  .attr('data-previousAttributes', JSON.stringify(previousAttributes));
 
             //as per discussion on https://github.com/markmarkoh/datamaps/issues/19
             if ( ! /((MSIE)|(Trident))/.test ) {
@@ -247,12 +283,13 @@
         .on('mouseout', function() {
           var $this = d3.select(this);
 
+
           if (options.highlightOnHover) {
             //reapply previous attributes
-            var previousAttributes = JSON.parse( $this.attr('data-previousAttributes') );
-            for ( var attr in previousAttributes ) {
-              $this.style(attr, previousAttributes[attr]);
-            }
+            //var previousAttributes = JSON.parse( $this.attr('data-previousAttributes') );
+            //for ( var attr in previousAttributes ) {
+            //  $this.style(attr, previousAttributes[attr]);
+            //}
           }
           $this.on('mousemove', null);
           d3.selectAll('.datamaps-hoverover').style('display', 'none');
@@ -260,7 +297,26 @@
     }
     if ( this.options.zoomConfig.zoomOnClick ) {
       svg.selectAll('.datamaps-subunit')
-        .on('click', function(d) { clickZoom.call(self, d) });
+        .on('click', function(d) {
+          if (d3.event.defaultPrevented) return;
+
+
+          if (angular.element) {
+            var scope = angular.element(self.svg.node()).scope();
+              //scope.nation = d;
+              //scope.$digest();
+
+              //setTimeout(function() {
+              // if (scope.set_nation) scope.set_nation(d);
+              //  scope.digest();
+              //},0);
+              
+              self.svg.selectAll('.active').classed('active',false);
+
+              clickZoom.call(self, d);
+          }
+
+        });
     }
 
     function moveToFront() {
@@ -432,7 +488,120 @@
   }
 
 
+  var appendFirst = function(root,childNode){
+    if(root.firstChild)root.insertBefore(childNode,root.firstChild);
+    else root.appendChild(childNode);
+  };
+
+
   function handleBubbles (layer, data, options ) {
+     var self = this,
+         fillData = this.options.fills,
+         svg = this.svg;
+
+     if ( !data || (data && !data.slice) ) {
+       throw "Datamaps Error - bubbles must be an array";
+     }
+
+     var bubbles = layer.selectAll('circle.datamaps-bubble').data( data, JSON.stringify );
+
+     bubbles
+       .enter()
+         .append('svg:circle')
+         .attr('class', 'datamaps-bubble')
+         .attr('cx', function ( datum ) {
+           var latLng;
+           if ( datumHasCoords(datum) ) {
+             latLng = self.latLngToXY(datum.latitude, datum.longitude);
+           }
+           else if ( datum.centered ) {
+             latLng = self.path.centroid(svg.select('path.' + datum.centered).data()[0]);
+           }
+           if ( latLng ) return latLng[0];
+         })
+         .attr('cy', function ( datum ) {
+           var latLng;
+           if ( datumHasCoords(datum) ) {
+             latLng = self.latLngToXY(datum.latitude, datum.longitude);
+           }
+           else if ( datum.centered ) {
+             latLng = self.path.centroid(svg.select('path.' + datum.centered).data()[0]);
+           }
+           if ( latLng ) return latLng[1];;
+         })
+         .attr('r', 0) //for animation purposes
+         .attr('data-info', function(d) {
+           return JSON.stringify(d);
+         })
+         .style('stroke', function ( datum ) {
+           return val(datum.borderColor, options.borderColor, datum);
+         })
+         .style('stroke-width', function ( datum ) {
+           return val(datum.borderWidth, options.borderWidth, datum);
+         })
+         .style('fill-opacity', function ( datum ) {
+           return val(datum.fillOpacity, options.fillOpacity, datum);
+         })
+         .style('fill', function ( datum ) {
+           var fillColor = fillData[ val(datum.fillKey, options.fillKey, datum) ];
+           return fillColor || fillData.defaultFill;
+         })
+         .on('mouseover', function ( datum ) {
+           var $this = d3.select(this);
+
+           if (options.highlightOnHover) {
+             //save all previous attributes for mouseout
+             //var previousAttributes = {
+             //   'fill':  $this.style('fill'),
+             //   'stroke': $this.style('stroke'),
+             // 'stroke-width': $this.style('stroke-width'),
+             // 'fill-opacity': $this.style('fill-opacity')
+             //};
+
+             //$this
+             // .style('fill', val(datum.highlightFillColor, options.highlightFillColor, datum))
+             // .style('stroke', val(datum.highlightBorderColor, options.highlightBorderColor, datum))
+             //   .style('stroke-width', val(datum.highlightBorderWidth, options.highlightBorderWidth, datum))
+             //   .style('fill-opacity', val(datum.highlightFillOpacity, options.highlightFillOpacity, datum))
+             //   .attr('data-previousAttributes', JSON.stringify(previousAttributes));
+           }
+
+           if (options.popupOnHover) {
+             self.updatePopup($this, datum, options, svg);
+           }
+         })
+         .on('mouseout', function ( datum ) {
+           var $this = d3.select(this);
+
+           //if (options.highlightOnHover) {
+           //   //reapply previous attributes
+           //   var previousAttributes = JSON.parse( $this.attr('data-previousAttributes') );
+           //   for ( var attr in previousAttributes ) {
+           //     $this.style(attr, previousAttributes[attr]);
+           //    }
+           //}
+
+           d3.selectAll('.datamaps-hoverover').style('display', 'none');
+         })
+         .transition().duration(400)
+           .attr('r', function ( datum ) {
+             return val(datum.radius, options.radius, datum);
+           });
+
+     bubbles.exit()
+       .transition()
+         .delay(options.exitDelay)
+         .attr("r", 0)
+         .remove();
+
+     function datumHasCoords (datum) {
+       return typeof datum !== 'undefined' && typeof datum.latitude !== 'undefined' && typeof datum.longitude !== 'undefined';
+     }
+
+   }
+
+
+  function __handleBubbles (layer, data, options ) {
     var self = this,
         fillData = this.options.fills,
         svg = this.svg;
@@ -441,27 +610,68 @@
       throw "Datamaps Error - bubbles must be an array";
     }
 
-    var images = layer.selectAll('image.bubble-image').data( data, JSON.stringify );
 
+    return;
+
+    //if (!window.cnt) {
+
+
+
+      var dom = $(layer[0][0]);
+
+      var el= document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      var root = $(layer[0][0]).parents("svg:first");
+
+      if (root.find('defs').length == 0) {
+        var html = "";
+        html += '<clippath id="image">';
+        html += '<circle cx="0" cy="0" fill="150" r="150"></circle>';
+        html += '</clippath>';
+        el.innerHTML = html;
+        appendFirst(root[0],el);
+      }
+
+
+    //   var defs = layer.append('svg:defs').attr("id","mdef");
+    //   var images = defs.selectAll('clipPath').data( [1], JSON.stringify );
+    //   images
+    //     .enter()
+    //     .append('svg:clipPath')
+    //     .attr("id","image")
+    //     //.attr("x","0")
+    //     //.attr("y","0")
+    //     //.attr("width","150")
+    //     //.attr("height","150")
+    //     //.attr("preserveAspectRatio","true")
+    //     //.attr("patternUnits","userSpaceOnUse")
+    //     .append("svg:image")
+    //     .attr("x","0")
+    //     .attr("y","0")
+    //     .attr("width","150")
+    //     .attr("height","150")
+    //     .attr('xlink:href','http://veespo.com/assets/veespo.png');
+    //     window.cnt = 'ciuppa';
+    // //}
+
+/*
     images
       .enter()
-      .append('image')
+      .append('svg:image')
       .attr('class','bubble-image')
       .attr('x',25)
       .attr('y',25)
-      .attr('xlink:href','http://placehold.it/150.png')
       .attr('height','150')
       .attr('width','150')
+      .attr('xlink:href','http://veespo.com/assets/veespo.png')
       .attr('clip-path','url(#cut-off-bottom)');
+*/
 
 
-    var bubbles = layer.selectAll('circle.datamaps-bubble').data( data, JSON.stringify );
 
-    bubbles
+    var bubbles2 = layer.selectAll('circle.datamaps-bubble').data( data, JSON.stringify );
+
+    bubbles2
       .enter()
-        .append('')
-        .append('clip-path')
-        .attr('id','cut-off-bottom')
         .append('svg:circle')
         .attr('class', 'datamaps-bubble')
         .attr('cx', function ( datum ) {
@@ -506,19 +716,19 @@
 
           if (options.highlightOnHover) {
             //save all previous attributes for mouseout
-            var previousAttributes = {
-              'fill':  $this.style('fill'),
-              'stroke': $this.style('stroke'),
-              'stroke-width': $this.style('stroke-width'),
-              'fill-opacity': $this.style('fill-opacity')
-            };
+            //var previousAttributes = {
+            //  'fill':  $this.style('fill'),
+            //  'stroke': $this.style('stroke'),
+            //  'stroke-width': $this.style('stroke-width'),
+            //  'fill-opacity': $this.style('fill-opacity')
+            //};
 
-            $this
-              .style('fill', val(datum.highlightFillColor, options.highlightFillColor, datum))
-              .style('stroke', val(datum.highlightBorderColor, options.highlightBorderColor, datum))
-              .style('stroke-width', val(datum.highlightBorderWidth, options.highlightBorderWidth, datum))
-              .style('fill-opacity', val(datum.highlightFillOpacity, options.highlightFillOpacity, datum))
-              .attr('data-previousAttributes', JSON.stringify(previousAttributes));
+            //$this
+            //  .style('fill', val(datum.highlightFillColor, options.highlightFillColor, datum))
+            //  .style('stroke', val(datum.highlightBorderColor, options.highlightBorderColor, datum))
+            //  .style('stroke-width', val(datum.highlightBorderWidth, options.highlightBorderWidth, datum))
+            //  .style('fill-opacity', val(datum.highlightFillOpacity, options.highlightFillOpacity, datum))
+            //  .attr('data-previousAttributes', JSON.stringify(previousAttributes));
           }
 
           if (options.popupOnHover) {
@@ -530,10 +740,102 @@
 
           if (options.highlightOnHover) {
             //reapply previous attributes
-            var previousAttributes = JSON.parse( $this.attr('data-previousAttributes') );
-            for ( var attr in previousAttributes ) {
-              $this.style(attr, previousAttributes[attr]);
-            }
+            //var previousAttributes = JSON.parse( $this.attr('data-previousAttributes') );
+            //for ( var attr in previousAttributes ) {
+            //  $this.style(attr, previousAttributes[attr]);
+            //}
+          }
+
+          d3.selectAll('.datamaps-hoverover').style('display', 'none');
+        })
+        .transition().duration(400)
+          .attr('r', function ( datum ) {
+            return val(datum.radius, options.radius, datum);
+          });
+
+
+    var bubbles = layer.selectAll('image.datamaps-bubble').data( data, JSON.stringify );
+
+    bubbles
+      .enter()
+        //.append('svg:clipPath')
+        //.attr('id','cut-off-bottom')
+        .append('image')
+        .attr('class', 'datamaps-bubble')
+        .attr('width','36')
+        .attr('height','36')
+        .attr('x', function ( datum ) {
+          var latLng;
+          if ( datumHasCoords(datum) ) {
+            latLng = self.latLngToXY(datum.latitude, datum.longitude);
+          }
+          else if ( datum.centered ) {
+            latLng = self.path.centroid(svg.select('path.' + datum.centered).data()[0]);
+          }
+          if ( latLng ) return latLng[0];
+        })
+        .attr('y', function ( datum ) {
+          var latLng;
+          if ( datumHasCoords(datum) ) {
+            latLng = self.latLngToXY(datum.latitude, datum.longitude);
+          }
+          else if ( datum.centered ) {
+            latLng = self.path.centroid(svg.select('path.' + datum.centered).data()[0]);
+          }
+          if ( latLng ) return latLng[1];;
+        })
+        .attr('data-info', function(d) {
+          return JSON.stringify(d);
+        })
+        .style('stroke', function ( datum ) {
+          return val(datum.borderColor, options.borderColor, datum);
+        })
+        .style('stroke-width', function ( datum ) {
+          return val(datum.borderWidth, options.borderWidth, datum);
+        })
+        .attr('xlink:href','https://www.logaster.com/blog/wp-content/uploads/2012/07/adidas-logo-trefoil-36x36.jpg')
+        //.style('fill','#ff0000')
+        //.style('clip-path','url(#image)')
+        //.style('fill-opacity', function ( datum ) {
+        //  return val(datum.fillOpacity, options.fillOpacity, datum);
+        //})
+        //.style('fill', function ( datum ) {
+        //  var fillColor = fillData[ val(datum.fillKey, options.fillKey, datum) ];
+        //  return fillColor || fillData.defaultFill;
+        //})
+        .on('mouseover', function ( datum ) {
+          var $this = d3.select(this);
+
+          if (options.highlightOnHover) {
+            //save all previous attributes for mouseout
+            //var previousAttributes = {
+            //  'fill':  $this.style('fill'),
+            //  'stroke': $this.style('stroke'),
+            //  'stroke-width': $this.style('stroke-width'),
+            //  'fill-opacity': $this.style('fill-opacity')
+            //};
+
+            //$this
+            //  .style('fill', val(datum.highlightFillColor, options.highlightFillColor, datum))
+            //  .style('stroke', val(datum.highlightBorderColor, options.highlightBorderColor, datum))
+            //  .style('stroke-width', val(datum.highlightBorderWidth, options.highlightBorderWidth, datum))
+            //  .style('fill-opacity', val(datum.highlightFillOpacity, options.highlightFillOpacity, datum))
+            //  .attr('data-previousAttributes', JSON.stringify(previousAttributes));
+          }
+
+          if (options.popupOnHover) {
+            self.updatePopup($this, datum, options, svg);
+          }
+        })
+        .on('mouseout', function ( datum ) {
+          var $this = d3.select(this);
+
+          if (options.highlightOnHover) {
+            //reapply previous attributes
+            //var previousAttributes = JSON.parse( $this.attr('data-previousAttributes') );
+            //for ( var attr in previousAttributes ) {
+            //  $this.style(attr, previousAttributes[attr]);
+            //}
           }
 
           d3.selectAll('.datamaps-hoverover').style('display', 'none');
@@ -545,7 +847,9 @@
 
     if ( self.options.zoomConfig.zoomOnClick ) {
       bubbles
-        .on('click', function (d) { clickZoom.call(self, d) });
+        .on('click', function (d) {
+          //clickZoom.call(self, d)
+        });
     }
 
     bubbles.exit()
@@ -561,17 +865,31 @@
   }
 
   function clickZoom(d) {
+
+    this.svg.selectAll("path").classed("active", false);
+
+    if (this.is_drag && this.is_drag == true) {
+      return;
+    }
+
+    console.log(d3.event);
+
     var self = this,
         zoomFactor  = self.options.zoomConfig.zoomFactor,
         width   = self.options.element.clientWidth,
         height  = self.options.element.clientHeight,
         bounds;
-    if (centered === d
-    || isNaN(zoomFactor)
-    || zoomFactor <= 0) return resetZoom.call(self);
+    //if (centered === d
+    //|| isNaN(zoomFactor)
+    //|| zoomFactor <= 0) return resetZoom.call(self);
+
+
 
     self.svg.selectAll("path").classed("active", false);
     centered = d;
+
+
+
 
     if ( d.radius ) { //Circle
         var cx = d3.select(d3.event.target).attr("cx");
@@ -591,13 +909,35 @@
         scale   = zoomFactor / Math.max(dx / width, dy / height),
         translate = [width / 2 - scale * x, height / 2 - scale * y];
 
+
+
     self.svg.selectAll("path")
       .classed("active", centered && function( d ) { return d === centered; });
+
+
+
 
     self.svg.selectAll("g").transition()
       .duration(750)
       .style("stroke-width", 1.5 / scale + "px")
       .attr("transform", "translate(" + translate + ")scale(" + scale + ")");
+
+    if (!this.zoom) this.zoom = d3.behavior.zoom();
+
+
+    if (this.last_s == undefined) {
+      this.last_s = 1.0762401247837972;
+    }
+
+
+    if (this.last_t == undefined) {
+      this.last_t = [-19.364991695084484, -6.40417048183896] ;
+    }
+
+
+
+    this.zoom.translate(translate);
+    this.zoom.scale(scale);
   }
 
   function resetZoom() {
@@ -674,6 +1014,14 @@
     }
   }
 
+
+
+
+
+
+
+
+
   // actually draw the features(states & countries)
   Datamap.prototype.draw = function() {
     //save off in a closure
@@ -727,9 +1075,118 @@
         }
 
         //fire off finished callback
+
+
+        self.wrapZoomWheel();
+        self.registerDragHandler();
         self.options.done(self);
+
+
       }
   };
+
+
+
+  Datamap.prototype.registerDragHandler = function() {
+
+    var self = this;
+
+    $(this.svg.node()).on('mousedown',function() {
+      self.is_drag = true;
+    })
+
+
+    $(this.svg.node()).on('mouseup',function() {
+      self.is_drag = false;
+    })
+
+  }
+
+  Datamap.prototype.wrapZoomWheel = function() {
+
+    var self = this;
+    if (!self.zoom) self.zoom = d3.behavior.zoom();
+    if (!self.drag) self.drag = d3.behavior.drag();
+    this.svg.call(self.zoom.on("zoom", function(e) {
+      var delta = d3.event.sourceEvent.deltaY;
+      
+      if (delta > 0) {
+        
+      /*  if (angular.element) {
+          var scope = angular.element(self.svg.node()).scope();
+          scope.nation = null;
+          scope.$digest();
+
+          setTimeout(function() {
+            if (scope.set_nation) scope.set_nation(null);
+            scope.digest();
+          },0);
+          
+        };
+        
+      */  
+      };
+      
+      
+      d3.event.sourceEvent.preventDefault();
+      d3.event.sourceEvent.stopPropagation();
+      self.redraw();
+    }));
+
+
+    this.svg.call(self.drag.on("dragstart", function(e) {
+      d3.event.sourceEvent.stopPropagation();
+      d3.event.sourceEvent.preventDefault();
+      self.is_drag = true;
+    }));
+
+
+
+
+  };
+
+  Datamap.prototype.redraw = function() {
+
+    if (this.last_s == undefined) {
+      this.last_s = d3.event.scale;
+    }
+
+
+    if (this.last_t == undefined) {
+      this.last_t = d3.event.translate;
+    }
+
+
+
+
+    var width = $(this.svg.node()).width();
+    var height = $(this.svg.node()).height();
+
+    var t = d3.event.translate;
+    var s = d3.event.scale;
+
+
+    console.log('translate',t);
+    console.log('scale',s);
+
+    if (s < 1) {
+      s = this.last_s;
+      t = this.last_t;
+      this.zoom.scale(s);
+      this.zoom.translate(t);
+      return;
+    }
+
+
+    //var h = height / 3;
+
+    //t[0] = Math.max(0, Math.min(t[0], width - s*50));
+    //t[1] = Math.max(0, Math.min(t[1], height - s*50));
+
+    this.zoom.translate(t);
+    this.svg.selectAll("g").attr("transform", "translate(" + t + ")scale(" + s + ")");
+  };
+
 
   Datamap.prototype.toggleZoom = function(bool) {
     var self = this,
@@ -744,7 +1201,10 @@
           .on('click', null);
       } else { //Enable
         svg.selectAll('.datamaps-bubble, .datamaps-subunit')
-          .on('click', function(d) { clickZoom.call(self, d) });
+          .on('click', function(d) {
+            console.log(d3.event.target)
+            //clickZoom.call(self, d)
+          });
       }
     }
 
